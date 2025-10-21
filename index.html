@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel IoT - Detecção de Gás</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f9f9f9;
+    color: #000;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  h1 { margin-top: 20px; color: #222; }
+
+  .cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 20px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 10px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    width: 260px;
+    color: #000;
+    transition: transform 0.2s;
+  }
+
+  .card:hover { transform: translateY(-5px); }
+
+  .value {
+    font-size: 2em;
+    margin-top: 10px;
+  }
+
+  .alert { color: #d80000; font-weight: bold; }
+  .normal { color: #007700; font-weight: bold; }
+
+  button {
+    margin: 8px 5px;
+    padding: 12px 22px;
+    font-size: 0.95em;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg,#4a90e2,#357ABD);
+    color: #fff;
+    transition: all 0.3s;
+    font-weight: 600;
+  }
+
+  button:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg,#357ABD,#4a90e2);
+  }
+
+  #infoDisplay {
+    width: 95%; 
+    max-width: 900px; 
+    background:#fff; 
+    margin:10px; 
+    padding:25px; 
+    border-radius:15px; 
+    box-shadow:0 8px 20px rgba(0,0,0,0.15); 
+    display:none;
+  }
+</style>
+</head>
+<body>
+<h1>Painel IoT - Sistema de Detecção de Gás</h1>
+
+<div class="cards-container">
+  <!-- MQ-2 -->
+  <div class="card">
+    <h2>Leitura MQ-2</h2>
+    <div id="gasValue" class="value">0 ppm</div>
+    <button id="simulateGas">Simular Vazamento</button>
+    <button id="testeSensor">Testar Sensor</button>
+  </div>
+
+  <!-- Válvula -->
+  <div class="card">
+    <h2>Status da Válvula</h2>
+    <div id="valveStatus" class="value normal">Aberta</div>
+    <button id="fecharValvula">Fechar Válvula</button>
+    <button id="abrirValvula">Abrir Válvula</button>
+  </div>
+
+  <!-- Alarme Visual -->
+  <div class="card">
+    <h2>Alarme Visual</h2>
+    <button id="acionarAlarme">Acionar Alarme</button>
+    <button id="desligarAlarme">Desligar Alarme</button>
+  </div>
+
+  <!-- Resetar Sistema -->
+  <div class="card">
+    <h2>Resetar Sistema</h2>
+    <button id="resetSystem">Resetar Sistema</button>
+  </div>
+
+  <!-- Atalhos Explicativos -->
+  <div class="card">
+    <h2>Informações do Projeto</h2>
+    <button onclick="mostrarInfo('resumo')">Resumo</button>
+    <button onclick="mostrarInfo('fundamentacao')">Fundamentação</button>
+    <button onclick="mostrarInfo('materiais')">Materiais/Métodos</button>
+    <button onclick="mostrarInfo('resultados')">Resultados</button>
+    <button onclick="mostrarInfo('conclusao')">Conclusões</button>
+  </div>
+</div>
+
+<!-- Div de exibição de informações -->
+<div id="infoDisplay">
+  <h3 id="infoTitle"></h3>
+  <p id="infoText"></p>
+</div>
+
+<script>
+  // MQTT
+  const client = mqtt.connect('wss://test.mosquitto.org:8081/mqtt');
+  client.on('connect', () => {
+    console.log('Conectado ao broker MQTT');
+    client.subscribe('iot/gas/mq2');
+    client.subscribe('iot/gas/valve');
+  });
+
+  client.on('message', (topic, message) => {
+    const msg = message.toString();
+    if(topic === 'iot/gas/mq2'){
+      document.getElementById('gasValue').textContent = msg + " ppm";
+    }
+    if(topic === 'iot/gas/valve'){
+      const statusElem = document.getElementById('valveStatus');
+      statusElem.textContent = msg;
+      if(msg === "Fechada"){
+        statusElem.classList.remove('normal');
+        statusElem.classList.add('alert');
+      } else {
+        statusElem.classList.remove('alert');
+        statusElem.classList.add('normal');
+      }
+    }
+  });
+
+  // Botões principais
+  document.getElementById('simulateGas').addEventListener('click', () => {
+    client.publish('iot/gas/mq2', '3000');
+    client.publish('iot/gas/valve', 'Fechada');
+    alert('Vazamento simulado!');
+  });
+
+  document.getElementById('testeSensor').addEventListener('click', () => {
+    alert('Teste do sensor executado!');
+  });
+
+  document.getElementById('fecharValvula').addEventListener('click', () => {
+    client.publish('iot/gas/valve', 'Fechada');
+  });
+
+  document.getElementById('abrirValvula').addEventListener('click', () => {
+    client.publish('iot/gas/valve', 'Aberta');
+  });
+
+  document.getElementById('acionarAlarme').addEventListener('click', () => {
+    alert('Alarme visual acionado!');
+  });
+
+  document.getElementById('desligarAlarme').addEventListener('click', () => {
+    alert('Alarme visual desligado!');
+  });
+
+  document.getElementById('resetSystem').addEventListener('click', () => {
+    client.publish('iot/gas/mq2', '0');
+    client.publish('iot/gas/valve', 'Aberta');
+    alert('Sistema resetado!');
+  });
+
+  // Informações do projeto
+  const infos = {
+    resumo: {
+      title: "Resumo do Projeto",
+      text: "Desenvolvimento de um sistema de automação para detecção de vazamento de gás utilizando ESP32, sensores MQ-2, válvula automática e alertas via IoT, visando segurança industrial e prevenção de acidentes no Polo Industrial de Manaus."
+    },
+    fundamentacao: {
+      title: "Fundamentação Teórica",
+      text: "A IoT permite monitoramento remoto e em tempo real de sensores de gás, integrando dispositivos à indústria 4.0. Sensores MQ detectam gases inflamáveis, possibilitando acionamento de válvulas e alarmes automaticamente."
+    },
+    materiais: {
+      title: "Materiais e Métodos",
+      text: "O protótipo utiliza ESP32, sensor MQ-2, servo motor MG996R, LED indicador, botão de reset, conectado via MQTT ao Node-RED para monitoramento. A programação gerencia leituras do sensor, acionamento da válvula e envio de alertas."
+    },
+    resultados: {
+      title: "Resultados Esperados",
+      text: "Detecção confiável de gases inflamáveis, acionamento rápido da válvula de segurança, alertas em tempo real, viabilizando monitoramento remoto e redução de riscos operacionais."
+    },
+    conclusao: {
+      title: "Considerações Finais",
+      text: "O sistema preliminar demonstra viabilidade para prevenção de acidentes, integrando sensores inteligentes, automação e IoT. Próximos passos incluem testes em diferentes condições e integração completa à plataforma de monitoramento remoto."
+    }
+  };
+
+  function mostrarInfo(chave) {
+    const infoDiv = document.getElementById('infoDisplay');
+    const infoTitle = document.getElementById('infoTitle');
+    const infoText = document.getElementById('infoText');
+
+    infoTitle.textContent = infos[chave].title;
+    infoText.textContent = infos[chave].text;
+    infoDiv.style.display = 'block';
+    infoDiv.scrollIntoView({behavior: "smooth"});
+  }
+</script>
+</body>
+</html>
